@@ -1,0 +1,44 @@
+[project]
+name = "todo-bot"
+version = "0.1.0"
+description = "ToDo tg bot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0",
+    "djangorestframework>=3.14",
+    "psycopg2-binary>=2.9",
+    "celery>=5.3",
+    "redis>=5.0",
+    "django-celery-beat>=2.5",
+    "python-decouple>=3.8",
+    "aiogram>=3.10",
+    "aiogram-dialog>=2.1",
+    "aiohttp>=3.9",
+    "uvicorn>=0.30", 
+    "gunicorn>=22.0"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "mypy",
+    "django-stubs",
+    "djangorestframework-stubs",
+    "types-redis"
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = ["migrations", "manage.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "backend.config.settings"
