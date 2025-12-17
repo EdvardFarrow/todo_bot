@@ -24,6 +24,7 @@ class Task(SnowflakeModel):
     description = models.TextField("Description", blank=True)
     deadline = models.DateTimeField("Deadline", null=True, blank=True)
     is_completed = models.BooleanField("Completed", default=False)
+    is_notified = models.BooleanField(default=False, verbose_name="Notification sent")
     
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
