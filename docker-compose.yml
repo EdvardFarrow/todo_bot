@@ -67,4 +67,4 @@ services:
     working_dir: /app/backend 
 
 volumes:
-  postgres_data
+  postgres_data:

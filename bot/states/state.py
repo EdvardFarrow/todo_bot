@@ -9,7 +9,7 @@ class MainSG(StatesGroup):
     task_list = State()           # Viewing list of tasks
     task_create = State()         # Inputting title for new task
     category_select = State()     # Selecting category
-    # task_detail = State()
+    task_detail = State()
     settings = State()
     
 class SetupSG(StatesGroup):
