@@ -15,8 +15,9 @@ dependencies = [
     "aiogram>=3.10",
     "aiogram-dialog>=2.1",
     "aiohttp>=3.9",
-    "uvicorn>=0.30", 
-    "gunicorn>=22.0"
+    "uvicorn>=0.30",
+    "gunicorn>=22.0",
+    "timezonefinder>=8.1.0",
 ]
 
 [tool.uv]

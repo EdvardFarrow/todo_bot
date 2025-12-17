@@ -2,11 +2,12 @@ import aiohttp
 import logging
 from typing import Optional, Dict, Any, List
 
+logger = logging.getLogger(__name__)
 
 class APIClient:
     """
     Async client to interact with Django REST API.
-    Handles Authentication and CRUD operations.
+    Handles Authentication, CRUD operations, and User Profile.
     """
     def __init__(self, base_url: str):
         self.base_url = base_url
@@ -21,17 +22,17 @@ class APIClient:
         if self.session:
             await self.session.close()
 
-    async def login(self, telegram_id: int, username: str, first_name: str) -> Dict[str, Any]:
+    async def login(self, telegram_id: int, username: str, first_name: str, language_code: str = "en") -> Dict[str, Any]:
         """
-        Authenticates user via Telegram ID.
-        Django will find existing user or create a new one.
-        Returns: Dict with 'token' and 'user_id'
+        Authenticates user via Telegram ID and updates/creates user in DB.
+        Passes language_code for Zero-Click Onboarding.
         """
         url = f"{self.base_url}/users/auth/telegram/"
         payload = {
             "telegram_id": telegram_id,
-            "username": username or f"tg_{telegram_id}", # Handle cases with no username
-            "first_name": first_name
+            "username": username or f"tg_{telegram_id}",
+            "first_name": first_name,
+            "language_code": language_code 
         }
         
         if not self.session:
@@ -39,13 +40,46 @@ class APIClient:
 
         try:
             async with self.session.post(url, json=payload) as resp:
-                resp.raise_for_status() # Raise error for 4xx/5xx
+                resp.raise_for_status()
                 data = await resp.json()
                 self.token = data["token"]
                 return data
         except aiohttp.ClientError as e:
-            logging.error(f"Auth failed: {e}")
+            logger.error(f"Auth failed: {e}")
             raise
+
+    async def get_profile(self) -> Dict:
+        """Fetch user profile (language, timezone)."""
+        if not self.token:
+            raise PermissionError("Unauthorized")
+        
+        url = f"{self.base_url}/users/profile/"
+        headers = {"Authorization": f"Token {self.token}"}
+        
+        async with self.session.get(url, headers=headers) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+            if data:
+                return data[0]
+            return {}
+
+    async def update_profile(self, language: str = None, timezone: str = None) -> Dict:
+        """Update user profile settings."""
+        profile = await self.get_profile()
+        user_id = profile.get('id')
+        if not user_id:
+            raise ValueError("Could not fetch profile id")
+
+        url = f"{self.base_url}/users/profile/{user_id}/"
+        headers = {"Authorization": f"Token {self.token}"}
+        
+        payload = {}
+        if language: payload['language'] = language
+        if timezone: payload['timezone'] = timezone
+        
+        async with self.session.patch(url, json=payload, headers=headers) as resp:
+            resp.raise_for_status()
+            return await resp.json()
 
     async def get_tasks(self) -> List[Dict]:
         """Fetch tasks for the authenticated user."""
@@ -59,14 +93,17 @@ class APIClient:
             resp.raise_for_status()
             return await resp.json()
 
-    async def create_task(self, title: str, category_id: Optional[str] = None) -> Dict:
-        """Create a new task."""
+    async def create_task(self, title: str, deadline: Optional[str] = None, category_id: Optional[str] = None) -> Dict:
+        """Create a new task with optional deadline."""
         if not self.token:
             raise PermissionError("Client is not authenticated.")
 
         url = f"{self.base_url}/tasks/"
         headers = {"Authorization": f"Token {self.token}"}
+        
         payload = {"title": title}
+        if deadline:
+            payload["deadline"] = deadline
         if category_id:
             payload["category_id"] = category_id
 

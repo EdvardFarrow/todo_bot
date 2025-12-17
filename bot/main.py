@@ -3,10 +3,13 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_dialog import setup_dialogs
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 from config import BOT_TOKEN, API_BASE_URL
 from client import APIClient
 from handlers.start import router as start_router
+from dialogs import main_dialog, setup_dialog
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +22,10 @@ async def main():
     
     logger.info("Bot is starting...")
 
-    bot = Bot(token=BOT_TOKEN)
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
     dp = Dispatcher(storage=MemoryStorage())
 
     client = APIClient(base_url=API_BASE_URL)
@@ -29,6 +35,9 @@ async def main():
     dp.workflow_data.update({"api_client": client})
 
     dp.include_router(start_router)
+    
+    dp.include_router(main_dialog)
+    dp.include_router(setup_dialog)
     
     setup_dialogs(dp)
 

@@ -11,6 +11,23 @@ class User(AbstractUser, SnowflakeModel):
         blank=True,
         db_index=True
     )
+    
+    LANGUAGE_CHOICES = [
+        ('ru', 'Русский'),
+        ('en', 'English'),
+    ]
+    language = models.CharField(
+        "Language", 
+        max_length=10, 
+        choices=LANGUAGE_CHOICES, 
+        default='en' 
+    )
+    timezone = models.CharField(
+        "Timezone", 
+        max_length=50, 
+        default='UTC'
+    )
+    
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"

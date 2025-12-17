@@ -1,37 +1,35 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+from aiogram_dialog import DialogManager, StartMode
 from client import APIClient
+from states.state import MainSG, SetupSG 
+import html
 
 router = Router()
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, api_client: APIClient):
+async def cmd_start(message: Message, dialog_manager: DialogManager, api_client: APIClient):
     """
-    Handle /start command.
-    Try to login to Django API.
+    Entry point. Authenticates user and decides routing
     """
     user = message.from_user
     
-    await message.answer("🔄 Connecting to Backend...")
-    
     try:
-        # Auth logic
-        data = await api_client.login(
+        await api_client.login(
             telegram_id=user.id,
             username=user.username,
-            first_name=user.first_name
+            first_name=user.first_name,
+            language_code=user.language_code 
         )
         
-        token_snippet = data['token'][:5] + "..."
-        backend_user_id = data['user_id']
+        profile = await api_client.get_profile()
+        timezone = profile.get('timezone', 'UTC')
         
-        await message.answer(
-            f"✅ **Success!**\n\n"
-            f"Django User ID: `{backend_user_id}` (Snowflake)\n"
-            f"Token: `{token_snippet}`\n\n"
-            f"API connection established."
-        )
-        
+        if timezone == 'UTC':
+            await dialog_manager.start(state=SetupSG.timezone, mode=StartMode.RESET_STACK)
+        else:
+            await dialog_manager.start(state=MainSG.menu, mode=StartMode.RESET_STACK)
+            
     except Exception as e:
-        await message.answer(f"❌ **Error:** Could not connect to Django.\n{e}")
+        await message.answer(f"❌ <b>Connection Error:</b>\n<code>{html.escape(str(e))}</code>")
