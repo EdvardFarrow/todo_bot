@@ -1,10 +1,10 @@
 from aiogram_dialog import Dialog, Window, StartMode
 from aiogram_dialog.widgets.text import Const, Format
-from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Cancel, Back
+from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select
 from aiogram_dialog.widgets.input import TextInput, MessageInput
 from aiogram.types import CallbackQuery, Message
 from aiogram.enums import ContentType
-
+from utils.parser import parse_task_text
 from states.state import MainSG, SetupSG
 from getters import get_my_tasks
 from timezonefinder import TimezoneFinder
@@ -19,14 +19,26 @@ async def to_create_task(callback: CallbackQuery, button: Button, manager):
 async def on_task_created(message: Message, widget, manager, text: str):
     """
     Triggered when the user submits text for a new task.
-    Sends the creation request to the API and returns to the task list.
+    Parses deadline from text and sends request to API.
     """
     client = manager.middleware_data.get("api_client")
     
+    title, deadline_dt = parse_task_text(text)
+    
+    deadline_str = deadline_dt.isoformat() if deadline_dt else None
+    
     try:
-        await client.create_task(title=text)
-        await message.answer(f"✅ Task <b>«{text}»</b> successfully created!")
+        await client.create_task(title=title, deadline=deadline_str)
+        
+        response_text = f"✅ Task <b>«{title}»</b> successfully created!"
+        
+        if deadline_dt:
+            user_fmt = deadline_dt.strftime('%H:%M %d.%m.%Y')
+            response_text += f"\n📅 Deadline: <b>{user_fmt}</b>"
+            
+        await message.answer(response_text)
         await manager.switch_to(MainSG.task_list)
+        
     except Exception as e:
         await message.answer(f"❌ <b>Creation error:</b>\n<code>{e}</code>")
 

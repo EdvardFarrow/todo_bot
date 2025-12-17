@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: todo_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  backend:
+    build: .
+    command: python backend/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN} 
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  bot:
+    build: .
+    command: python bot/main.py
+    volumes:
+      - .:/app
+    depends_on:
+      - backend
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - API_BASE_URL=http://backend:8000/api/v1 
+
+  celery:
+    build: .
+    command: celery -A config worker --beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - backend
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=config.settings
+    working_dir: /app/backend 

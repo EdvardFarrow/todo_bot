@@ -2,15 +2,13 @@ import requests
 from celery import shared_task
 from django.utils import timezone
 from .models import Task
-from decouple import config
+from django.conf import settings
 import logging
 
 
 logger = logging.getLogger(__name__)
 
 
-
-BOT_TOKEN = config("BOT_TOKEN") 
 
 @shared_task
 def check_deadlines():
@@ -47,11 +45,11 @@ def check_deadlines():
 
 def send_telegram_message(chat_id, text):
     """Raw request to the Telegram API"""
-    if not BOT_TOKEN:
+    if not settings.BOT_TOKEN:
         logger.warning("❌ BOT_TOKEN not found in settings")
         return
 
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
