@@ -2,10 +2,42 @@ import logging
 from typing import Dict
 from aiogram_dialog import DialogManager
 from client import APIClient
+import pytz
+from dateutil import parser
 
 
 logger = logging.getLogger(__name__)
 
+
+DEFAULT_TZ = pytz.timezone('UTC')
+
+def format_user_time(iso_date_str: str, user_timezone_str: str) -> str:
+    """
+    "2025-12-17T05:00:00Z" -> "17.12 19:00"
+    """
+    if not iso_date_str:
+        return ""
+
+    try:
+        dt_utc = parser.parse(iso_date_str)
+        
+        if dt_utc.tzinfo is None:
+            dt_utc = pytz.utc.localize(dt_utc)
+
+        try:
+            user_tz = pytz.timezone(user_timezone_str)
+        except pytz.UnknownTimeZoneError:
+            user_tz = DEFAULT_TZ
+
+        dt_local = dt_utc.astimezone(user_tz)
+
+        return dt_local.strftime("%d.%m %H:%M")
+
+    except Exception as e:
+        logger.error(f"Date parsing error: {e}")
+        return iso_date_str
+    
+    
 async def get_my_tasks(dialog_manager: DialogManager, **kwargs) -> Dict:
     """
     Loads the user's task list.
@@ -14,11 +46,44 @@ async def get_my_tasks(dialog_manager: DialogManager, **kwargs) -> Dict:
     client: APIClient = dialog_manager.middleware_data.get("api_client")
     user = dialog_manager.event.from_user
     
+    user_timezone = "UTC"
     try:
-        tasks = await client.get_tasks()
+        profile = await client.get_profile()
+        user_timezone = profile.get("timezone", "UTC")
+    except Exception as e:
+        logger.warning(f"Could not fetch profile for timezone: {e}")
+
+    try:
+        tasks_raw = await client.get_tasks()
+        
+        formatted_tasks = []
+        for task in tasks_raw:
+            created_at_fmt = format_user_time(task.get('created_at'), user_timezone)
+            
+            deadline_fmt = format_user_time(task.get('deadline'), user_timezone)
+            
+            cat_data = task.get('category')
+            cat_title = cat_data.get('title') if isinstance(cat_data, dict) else ""
+
+            display_title = task['title']
+            
+            if task.get('is_completed'):
+                display_title = f"✅ {display_title}"
+            elif deadline_fmt:
+                display_title = f"⏰ {display_title} [{deadline_fmt}]"
+            
+            formatted_tasks.append({
+                "id": str(task['id']),
+                "title": display_title,
+                "created_at": created_at_fmt,
+                "deadline": deadline_fmt,
+                "category": cat_title,
+                "is_completed": task.get('is_completed')
+            })
+
         return {
-            "tasks": tasks,
-            "count": len(tasks),
+            "tasks": formatted_tasks,
+            "count": len(formatted_tasks),
             "username": user.first_name or user.username
         }
     except Exception as e:

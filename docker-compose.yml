@@ -1,4 +1,17 @@
 services:
+  db:
+      image: postgres:15-alpine
+      container_name: todo_db
+      restart: always
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      environment:
+        - POSTGRES_DB=todo_list
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=postgres
+      ports:
+        - "5432:5432"
+
   redis:
     image: redis:alpine
     container_name: todo_redis
@@ -15,10 +28,17 @@ services:
       - "8000:8000"
     depends_on:
       - redis
+      - db
     environment:
       - BOT_TOKEN=${BOT_TOKEN} 
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=todo_list
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
 
   bot:
     build: .
@@ -45,3 +65,6 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DJANGO_SETTINGS_MODULE=config.settings
     working_dir: /app/backend 
+
+volumes:
+  postgres_data

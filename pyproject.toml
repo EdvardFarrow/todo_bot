@@ -20,6 +20,8 @@ dependencies = [
     "timezonefinder>=8.1.0",
     "requests>=2.32.5",
     "dateparser>=1.2.2",
+    "pytz>=2025.2",
+    "python-dateutil>=2.9.0.post0",
 ]
 
 [tool.uv]
