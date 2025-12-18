@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from config import BOT_TOKEN, API_BASE_URL
 from client import APIClient
 from handlers.start import router as start_router
-from dialogs import main_dialog, setup_dialog
+from dialogs import main_dialog, setup_dialog, category_dialog
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ async def main():
     dp.workflow_data.update({"api_client": client})
 
     dp.include_router(start_router)
-    
+    dp.include_router(category_dialog)
     dp.include_router(main_dialog)
     dp.include_router(setup_dialog)
     

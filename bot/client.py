@@ -110,7 +110,8 @@ class APIClient:
         async with self.session.post(url, headers=headers, json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
-            
+        
+        
     async def get_categories(self) -> List[Dict]:
         """Fetch categories."""
         if not self.token:
@@ -118,6 +119,27 @@ class APIClient:
             
         url = f"{self.base_url}/categories/"
         headers = {"Authorization": f"Token {self.token}"}
-        async with self.session.get(url, headers=headers) as resp:
+        try:
+            async with self.session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                return []
+        except Exception as e:
+            logging.error(f"Error getting categories: {e}")
+            return []
+        
+    
+    async def create_category(self, name: str) -> dict:
+        """Create category"""
+        if not self.token:
+            raise PermissionError("No token")
+            
+        url = f"{self.base_url}/categories/"
+        headers = {"Authorization": f"Token {self.token}"}
+        payload = {"name": name} 
+        
+        async with self.session.post(url, headers=headers, json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
+    
+    
