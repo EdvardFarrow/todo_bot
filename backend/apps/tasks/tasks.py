@@ -1,6 +1,7 @@
 import requests
 from celery import shared_task
 from django.utils import timezone
+from datetime import timedelta
 from .models import Task
 from django.conf import settings
 import logging
@@ -18,6 +19,33 @@ def check_deadlines():
     but the notification has not yet been sent.
     """
     now = timezone.now()
+    
+    warning_limit = now + timedelta(minutes=10)
+    
+    upcoming_tasks = Task.objects.filter(
+        deadline__gt=now,             # Deadline__gt = Greater Than
+        deadline__lte=warning_limit,  
+        is_completed=False,
+        is_pre_notified=False         
+    ).select_related('user')
+
+    for task in upcoming_tasks:
+        user = task.user
+        if not user.telegram_id:
+            continue
+            
+        minutes_left = int((task.deadline - now).total_seconds() / 60)
+        
+        message_text = (
+            f"⏳ <b>Reminder!</b>\n\n"
+            f"Task: <b>{task.title}</b>\n"
+            f"Due in: <b>{minutes_left} min</b>"
+        )
+        
+        send_telegram_message(user.telegram_id, message_text)
+        
+        task.is_pre_notified = True
+        task.save(update_fields=['is_pre_notified'])
     
     expired_tasks = Task.objects.filter(
         deadline__lte=now,   # deadline__lte = Less Than or Equal

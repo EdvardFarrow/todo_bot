@@ -20,11 +20,13 @@ class Category(SnowflakeModel):
         return self.name
 
 class Task(SnowflakeModel):
-    title = models.CharField("Title", max_length=255)
-    description = models.TextField("Description", blank=True)
-    deadline = models.DateTimeField("Deadline", null=True, blank=True)
-    is_completed = models.BooleanField("Completed", default=False)
-    is_notified = models.BooleanField(default=False, verbose_name="Notification sent")
+    title = models.CharField(verbose_name = "Title", max_length=255)
+    description = models.TextField(verbose_name = "Description", blank=True)
+    deadline = models.DateTimeField(verbose_name = "Deadline", null=True, blank=True)
+    
+    is_completed = models.BooleanField(verbose_name = "Completed", default=False)
+    is_notified = models.BooleanField(default=False, verbose_name="Deadline Missed Sent")
+    is_pre_notified = models.BooleanField(default=False, verbose_name="10-min Warning Sent")
     
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
