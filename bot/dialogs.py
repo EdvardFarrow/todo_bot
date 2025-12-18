@@ -22,7 +22,16 @@ async def on_task_created(message: Message, widget, manager, text: str):
     Triggered when the user submits text for a new task.
     Parses deadline from text and sends request to API.
     """    
-    title, deadline_dt = parse_task_text(text)
+    client = manager.middleware_data.get("api_client")
+    
+    user_tz = "UTC"
+    try:
+        profile = await client.get_profile()
+        user_tz = profile.get("timezone", "UTC")
+    except Exception:
+        pass
+    
+    title, deadline_dt = parse_task_text(text, user_timezone=user_tz)
     
     manager.dialog_data["temp_title"] = title
     manager.dialog_data["temp_deadline"] = deadline_dt.isoformat() if deadline_dt else None

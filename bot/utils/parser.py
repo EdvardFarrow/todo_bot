@@ -1,5 +1,6 @@
 import datetime
 from dateparser.search import search_dates
+import pytz
 
 def parse_task_text(text: str, user_timezone: str = "UTC") -> tuple[str, datetime.datetime | None]:
     """
@@ -30,5 +31,8 @@ def parse_task_text(text: str, user_timezone: str = "UTC") -> tuple[str, datetim
 
     if not clean_title:
         clean_title = text
+    
+    if deadline_dt:
+        deadline_dt = deadline_dt.astimezone(pytz.utc)
 
     return clean_title, deadline_dt

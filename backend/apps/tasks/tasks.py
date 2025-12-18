@@ -5,10 +5,29 @@ from datetime import timedelta
 from .models import Task
 from django.conf import settings
 import logging
+from zoneinfo import ZoneInfo
 
 
 logger = logging.getLogger(__name__)
 
+
+def get_local_time_str(dt, user):
+    """
+    UTC datetime -> User timezone
+    """
+    if not dt:
+        return ""
+        
+    user_tz_name = getattr(user, 'timezone', None)
+    
+    if user_tz_name:
+        try:
+            local_dt = dt.astimezone(ZoneInfo(user_tz_name))
+            return local_dt.strftime('%H:%M')
+        except Exception:
+            pass
+            
+    return dt.strftime('%H:%M (UTC)')
 
 
 @shared_task
@@ -36,6 +55,8 @@ def check_deadlines():
             
         minutes_left = int((task.deadline - now).total_seconds() / 60)
         
+        user_time_str = get_local_time_str(task.deadline, user)
+        
         message_text = (
             f"⏳ <b>Reminder!</b>\n\n"
             f"Task: <b>{task.title}</b>\n"
@@ -57,6 +78,8 @@ def check_deadlines():
         user = task.user
         if not user.telegram_id:
             continue
+        
+        user_time_str = get_local_time_str(task.deadline, user)
             
         message_text = (
             f"🔥 <b>DEADLINE REACHED!</b>\n\n"

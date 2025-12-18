@@ -74,6 +74,8 @@ shell:
 bash-backend:
 	$(EXEC_CMD) bash
 
+init-tasks:
+	docker compose exec backend python backend/manage.py setup_periodic_tasks
 
 lint:
 	@echo "Running Ruff Linter..."
