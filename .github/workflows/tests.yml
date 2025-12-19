@@ -30,7 +30,7 @@ jobs:
       run: uv sync --all-extras --dev
 
     - name: Run Tests
-      run: uv run coverage run -m pytest
+      run: uv run python -m coverage run -m pytest
 
     - name: Show Coverage Report
-      run: uv run coverage report
+      run: uv run python -m coverage report
