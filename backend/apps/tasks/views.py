@@ -1,11 +1,14 @@
-from rest_framework import viewsets, permissions
-from apps.tasks.models import Task, Category
-from apps.tasks.serializers import TaskSerializer, CategorySerializer
+from rest_framework import permissions, viewsets
+
+from apps.tasks.models import Category, Task
+from apps.tasks.serializers import CategorySerializer, TaskSerializer
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to view or edit their categories.
     """
+
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -17,10 +20,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
         """Associate the new category with the current user."""
         serializer.save(user=self.request.user)
 
+
 class TaskViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to view or edit their tasks.
     """
+
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
 

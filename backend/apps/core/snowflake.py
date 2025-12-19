@@ -1,12 +1,13 @@
 import time
 from threading import Lock
-from typing import Optional
+
 
 class SnowflakeGenerator:
     """
     Thread-safe Snowflake ID generator.
     Format (64 bits): [1 unused] [41 timestamp] [10 machine_id] [12 sequence]
     """
+
     EPOCH = 1735689600000  # 2025-01-01 00:00:00 UTC
 
     def __init__(self, machine_id: int):
@@ -50,9 +51,10 @@ class SnowflakeGenerator:
             self.last_timestamp = timestamp
 
             return (
-                ((timestamp - self.EPOCH) << self.timestamp_shift) |
-                (self.machine_id << self.machine_id_shift) |
-                self.sequence
+                ((timestamp - self.EPOCH) << self.timestamp_shift)
+                | (self.machine_id << self.machine_id_shift)
+                | self.sequence
             )
 
-generator: Optional[SnowflakeGenerator] = None
+
+generator: SnowflakeGenerator | None = None

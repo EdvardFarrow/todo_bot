@@ -1,5 +1,7 @@
 DC = docker compose
 
+CMD = uv run
+
 EXEC_CMD = $(DC) exec backend
 
 EXEC_DJANGO = $(EXEC_CMD) python backend/manage.py
@@ -79,15 +81,15 @@ init-tasks:
 
 lint:
 	@echo "Running Ruff Linter..."
-	$(EXEC_CMD) ruff check .
+	$(CMD) ruff check .
 
 format:
 	@echo "Running Ruff Formatter..."
-	$(EXEC_CMD) ruff format .
+	$(CMD) ruff format .
 
 types:
 	@echo "Running Mypy..."
-	$(EXEC_CMD) mypy .
+	PYTHONPATH=backend $(CMD) mypy backend bot
 
 qa: format lint types
 	@echo "✅ QA Checks Completed!"
