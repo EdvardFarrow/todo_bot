@@ -30,7 +30,7 @@ jobs:
       run: uv sync --dev
 
     - name: Run Tests
-      run: uv run python -m coverage run -m pytest
+      run: uv run python -m pytest --cov=bot
 
     - name: Show Coverage Report
       run: uv run python -m coverage report
