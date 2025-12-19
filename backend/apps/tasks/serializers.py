@@ -22,7 +22,6 @@ class TaskSerializer(serializers.ModelSerializer):
         required=False, 
         allow_null=True
     )
-    # Read-only field to show category name in response
     category_name = serializers.CharField(source="category.name", read_only=True)
 
     class Meta:
@@ -48,3 +47,15 @@ class TaskSerializer(serializers.ModelSerializer):
         if value and value.user != user:
             raise serializers.ValidationError("You cannot use a category that does not belong to you.")
         return value
+    
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        
+        cat_name = self.initial_data.get('category_name')
+
+        if cat_name:
+            category, created = Category.objects.get_or_create(name=cat_name, user=user)
+            validated_data['category'] = category
+
+        return super().create(validated_data)

@@ -1,3 +1,4 @@
+from magic_filter import F
 from aiogram_dialog import Dialog, Window, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Start
@@ -7,16 +8,19 @@ from aiogram.enums import ContentType
 from utils.transcriber import transcribe_voice
 from utils.parser import parse_task_text
 from states.state import CategorySG, MainSG, SetupSG
-from getters import get_categories, get_my_tasks
+from getters import get_categories, get_my_tasks, get_task_data, get_category_data
 from timezonefinder import TimezoneFinder
 
 
-# Handlers
+# --- HANDLERS ---
+
+# TASKS
 async def to_create_task(callback: CallbackQuery, button: Button, manager):
     """
     Switch context to the Task Creation window.
     """
     await manager.switch_to(MainSG.task_create)
+
 
 async def on_task_created(message: Message, widget, manager, text: str):
     """
@@ -38,7 +42,55 @@ async def on_task_created(message: Message, widget, manager, text: str):
     manager.dialog_data["temp_deadline"] = deadline_dt.isoformat() if deadline_dt else None
     
     await manager.switch_to(MainSG.task_category)
+    
+    
+async def on_task_selected(callback: CallbackQuery, widget, manager, item_id: str):
+    """Click on the task in the list -> Save the ID and go to details"""
+    manager.dialog_data["selected_task_id"] = item_id
+    await manager.switch_to(MainSG.task_detail)
 
+
+async def delete_task_handler(callback: CallbackQuery, widget, manager):
+    """Delete a task"""
+    client = manager.middleware_data.get("api_client")
+    task_id = manager.dialog_data.get("selected_task_id")
+    try:
+        await client.delete_task(task_id)
+        await callback.answer("🗑 Task deleted")
+        await manager.switch_to(MainSG.task_list)
+    except Exception as e:
+        await callback.message.answer(f"Error: {e}")
+        
+
+async def toggle_complete_handler(callback: CallbackQuery, widget, manager):
+    """
+    Marks the selected task as completed via API and returns to the task list.
+    """
+    client = manager.middleware_data.get("api_client")
+    task_id = manager.dialog_data.get("selected_task_id")
+    try:
+        # We explicitly set it to True (Mark as Done)
+        await client.update_task(task_id, {"is_completed": True})
+        await callback.answer("✅ Task completed!")
+        await manager.switch_to(MainSG.task_list)
+    except Exception as e:
+        await callback.message.answer(f"Error: {e}")
+        
+
+async def on_task_edit_submit(message: Message, widget, manager, text: str):
+    """Save a new task title"""
+    client = manager.middleware_data.get("api_client")
+    task_id = manager.dialog_data.get("selected_task_id")
+    
+    try:
+        await client.update_task(task_id, {"title": text})
+        await message.answer("✅ Title updated")
+        await manager.switch_to(MainSG.task_detail)
+    except Exception as e:
+        await message.answer(f"Error: {e}")
+
+
+# CATEGORIES
 
 async def on_category_selected(callback: CallbackQuery, widget, manager, item_id: str):
     """Category selected -> save task"""
@@ -58,6 +110,7 @@ async def on_category_selected(callback: CallbackQuery, widget, manager, item_id
 
 
 async def on_category_created(message: Message, widget, manager, text: str):
+    """Creates a new category via API and switches back to the category list."""
     client = manager.middleware_data.get("api_client")
     
     try:
@@ -69,15 +122,34 @@ async def on_category_created(message: Message, widget, manager, text: str):
         await message.answer(f"❌ <b>Error:</b>\n<code>{e}</code>")
 
 
-async def on_task_selected(callback: CallbackQuery, widget, manager, item_id: str):
+async def delete_cat_handler(callback: CallbackQuery, widget, manager):
     """
-    Placeholder handler for clicking on a specific task in the list.
-    Future implementation: Open task details window.
+    Deletes the selected category via API and returns to the category list.
     """
-    await callback.answer(f"Selected task ID: {item_id}")
-    # await manager.switch_to(MainSG.task_detail)
-    
-    
+    client = manager.middleware_data.get("api_client")
+    cat_id = manager.dialog_data.get("selected_cat_id")
+    try:
+        await client.delete_category(cat_id)
+        await callback.answer("🗑 Category deleted")
+        await manager.switch_to(CategorySG.list)
+    except Exception as e:
+        await callback.message.answer(f"Error: {e}")
+
+
+async def on_cat_edit_submit(message: Message, widget, manager, text: str):
+    """
+    Updates the category name via API and returns to the category list.
+    """
+    client = manager.middleware_data.get("api_client")
+    cat_id = manager.dialog_data.get("selected_cat_id")
+    try:
+        await client.update_category(cat_id, text)
+        await message.answer("✅ Category renamed")
+        await manager.switch_to(CategorySG.list)
+    except Exception as e:
+        await message.answer(f"Error: {e}")
+
+
 async def on_geo_sent(message: Message, widget, manager):
     """
     Triggered when user sends their location.
@@ -103,43 +175,68 @@ async def on_geo_sent(message: Message, widget, manager):
         
     except Exception as e:
         await message.answer(f"❌ <b>API Error:</b>\n<code>{e}</code>")
-        
-        
-async def on_voice_task(message: Message, widget, manager):
-    """
-    Processing a voice message from the main menu.
-    """
-    await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
+
+async def generic_voice_handler(message: Message, widget, manager):
+    """
+    Universal voice processor.
+    """
     text = await transcribe_voice(message.bot, message.voice.file_id)
-
     if not text:
-        await message.answer("❌ The voice message could not be recognized.")
+        await message.answer("🤷‍♂️ The text could not be recognized.")
         return
 
-    await message.answer(f"🗣 <b>Recognized:</b>\n<i>«{text}»</i>")
-
     client = manager.middleware_data.get("api_client")
+    
+    current_state = manager.current_context().state
 
-    user_tz = "UTC"
     try:
-        profile = await client.get_profile()
-        user_tz = profile.get("timezone", "UTC")
-    except Exception:
-        pass
+        # Create a new category
+        if current_state == CategorySG.create:
+            await client.create_category(name=text)
+            await message.answer(f"📂 Category <b>«{text}»</b> created!")
+            await manager.switch_to(CategorySG.list)
 
-    title, deadline_dt = parse_task_text(text, user_timezone=user_tz)
+        # Edit a category name
+        elif current_state == CategorySG.edit:
+            cat_id = manager.dialog_data.get("selected_cat_id")
+            await client.update_category(cat_id, text)
+            await message.answer(f"✅ Renamed to <b>«{text}»</b>")
+            await manager.switch_to(CategorySG.list)
 
-    manager.dialog_data["temp_title"] = title
-    manager.dialog_data["temp_deadline"] = deadline_dt.isoformat() if deadline_dt else None
+        # Edit a task title
+        elif current_state == MainSG.task_edit_title:
+            task_id = manager.dialog_data.get("selected_task_id")
+            await client.update_task(task_id, {"title": text})
+            await message.answer(f"✅ Title updated to <b>«{text}»</b>")
+            await manager.switch_to(MainSG.task_detail)
+        
+        # Create a new task
+        elif current_state == MainSG.task_create:
+            await client.create_task(title=text) 
+            await message.answer(f"✅ Task <b>«{text}»</b> created!")
+            await manager.switch_to(MainSG.task_list)
 
-    await manager.switch_to(MainSG.task_category)
+    except Exception as e:
+        await message.answer(f"❌ Error: {e}")
+    
+    
+async def on_cat_mgmt_selected(callback: CallbackQuery, widget, manager, item_id: str):
+    """
+    Handler for selecting a category in Management Mode.
+    Save ID and switch to details.
+    """
+    manager.dialog_data["selected_cat_id"] = item_id
+    
+    await manager.switch_to(CategorySG.detail)
 
+
+# WINDOWS
 
 main_menu_window = Window(
     Format("👋 Hello, <b>{username}</b>!\n\nYour personal Task Tracker is ready."),
     MessageInput(
-        func=on_voice_task,
+        func=generic_voice_handler,
         content_types=[ContentType.VOICE]
     ),
     Row(
@@ -155,6 +252,7 @@ main_menu_window = Window(
 )
 
 
+# Tasks
 task_list_window = Window(
     Format("📋 <b>Your Tasks ({count}):</b>"),
     ScrollingGroup(
@@ -185,15 +283,40 @@ task_create_window = Window(
         id="input_task_title",
         on_success=on_task_created
     ),
-    MessageInput(
-        func=on_voice_task,
-        content_types=[ContentType.VOICE]
-    ),
+    MessageInput(func=generic_voice_handler, content_types=[ContentType.VOICE]),
     Button(Const("🔙 Cancel"), id="btn_cancel", on_click=lambda c, b, m: m.switch_to(MainSG.menu)),
     state=MainSG.task_create,
 )
 
 
+task_detail_window = Window(
+    Format("📝 <b>{task[title]}</b>"),
+    Format("📅 Deadline: {task[deadline_fmt]}"),
+    Format("📂 Category: {task[category_name]}", when=F["task"]["category_name"]),
+    Format("🕒 Created: {task[created_at_fmt]}"),
+    
+    Row(
+        Button(Const("✅ Complete"), id="btn_complete", on_click=toggle_complete_handler),
+        Button(Const("✏️ Edit Title"), id="btn_edit_task", on_click=lambda c,b,m: m.switch_to(MainSG.task_edit_title)),
+    ),
+    Button(Const("🗑 Delete Task"), id="btn_del_task", on_click=delete_task_handler),
+    Button(Const("🔙 Back"), id="btn_back_detail", on_click=lambda c,b,m: m.switch_to(MainSG.task_list)),
+    
+    state=MainSG.task_detail,
+    getter=get_task_data
+)
+
+
+task_edit_window = Window(
+    Const("✍️ <b>Enter new title:</b>"),
+    TextInput(id="input_edit_task", on_success=on_task_edit_submit),
+    MessageInput(func=generic_voice_handler, content_types=[ContentType.VOICE]),
+    Button(Const("🔙 Cancel"), id="btn_cancel_edit", on_click=lambda c,b,m: m.switch_to(MainSG.task_detail)),
+    state=MainSG.task_edit_title
+)
+
+
+# Categories
 task_category_window = Window(
     Const("📂 <b>Select a category:</b>"),
     ScrollingGroup(
@@ -222,7 +345,7 @@ cat_list_window = Window(
             id="cat_mgm_sel",
             item_id_getter=lambda x: str(x['id']),
             items="categories",
-            on_click=lambda c,w,m,id: c.answer(f"Cat ID: {id}")
+            on_click=on_cat_mgmt_selected
         ),
         id="cat_scroll_mgm",
         width=2, height=5
@@ -240,11 +363,36 @@ cat_create_window = Window(
         id="input_cat_name",
         on_success=on_category_created 
     ),
+    MessageInput(func=generic_voice_handler, content_types=[ContentType.VOICE]),
     Button(Const("🔙 Cancel"), id="cancel_cat_create", on_click=lambda c,b,m: m.switch_to(CategorySG.list)),
     state=CategorySG.create,
 )
 
 
+cat_detail_window = Window(
+    Format("📂 Category ID: {cat_id}"), 
+    
+    Row(
+        Button(Const("✏️ Rename"), id="btn_ren_cat", on_click=lambda c,b,m: m.switch_to(CategorySG.edit)),
+        Button(Const("🗑 Delete"), id="btn_del_cat", on_click=delete_cat_handler),
+    ),
+    Button(Const("🔙 Back"), id="btn_back_cat_det", on_click=lambda c,b,m: m.switch_to(CategorySG.list)),
+    
+    state=CategorySG.detail,
+    getter=get_category_data
+)
+
+
+cat_edit_window = Window(
+    Const("✍️ <b>Enter new category name:</b>"),
+    TextInput(id="input_ren_cat", on_success=on_cat_edit_submit),
+    MessageInput(func=generic_voice_handler, content_types=[ContentType.VOICE]),
+    Button(Const("🔙 Cancel"), id="btn_cancel_ren", on_click=lambda c,b,m: m.switch_to(CategorySG.detail)),
+    state=CategorySG.edit
+)
+
+
+# Setup
 setup_window = Window(
     Const("📍 <b>Timezone Setup</b>\n\nPlease send me your <b>Location</b> (📎 Attachment -> Location) so I can detect your timezone automatically.\n\n<i>Or click Skip to use UTC.</i>"),
     MessageInput(
@@ -278,11 +426,15 @@ main_dialog = Dialog(
     task_create_window,
     task_category_window,
     settings_window,
+    task_detail_window,
+    task_edit_window,
 )
 
 category_dialog = Dialog(
     cat_list_window,
-    cat_create_window, 
+    cat_create_window,
+    cat_detail_window,
+    cat_edit_window
 )
 
 setup_dialog = Dialog(

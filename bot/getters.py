@@ -95,6 +95,45 @@ async def get_my_tasks(dialog_manager: DialogManager, **kwargs) -> Dict:
             "error": str(e) 
         }
 
+
+async def get_task_data(dialog_manager: DialogManager, **kwargs):
+    """
+    Load a task data
+    """
+    client: APIClient = dialog_manager.middleware_data.get("api_client")
+    task_id = dialog_manager.dialog_data.get("selected_task_id")
+    
+    user_tz = "UTC"
+    try:
+        profile = await client.get_profile()
+        user_tz = profile.get("timezone", "UTC")
+    except: pass
+
+    try:
+        task = await client.get_task(task_id)
+        
+        deadline_str = task.get('deadline')
+        task['deadline_fmt'] = format_user_time(deadline_str, user_tz) or "No deadline"
+        
+        created_str = task.get('created_at')
+        task['created_at_fmt'] = format_user_time(created_str, user_tz)
+        
+        if not task.get('category_name'):
+            task['category_name'] = None 
+
+        return {"task": task}       
+    except Exception as e:
+        return {
+            "task": {
+                "title": "Error loading task",
+                "deadline_fmt": "Unknown",
+                "created_at_fmt": "Unknown",
+                "category_name": None,
+                "description": str(e)
+            }
+        }
+
+
 async def get_categories(dialog_manager: DialogManager, **kwargs) -> Dict:
     """
     Loads categories
@@ -106,3 +145,21 @@ async def get_categories(dialog_manager: DialogManager, **kwargs) -> Dict:
     except Exception as e:
         logger.error(f"Error fetching categories: {e}")
         return {"categories": []}
+    
+    
+async def get_category_data(dialog_manager: DialogManager, **kwargs):
+    """Load a category data"""
+    client = dialog_manager.middleware_data.get("api_client")
+    cat_id = dialog_manager.dialog_data.get("selected_cat_id")
+    
+    try:
+        category = await client.get_category(cat_id)
+        return {
+            "cat_id": category['id'],
+            "cat_name": category['name'] 
+        }
+    except Exception as e:
+        return {
+            "cat_id": cat_id,
+            "cat_name": "Error loading name"
+        }

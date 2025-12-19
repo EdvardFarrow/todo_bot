@@ -8,8 +8,9 @@ class MainSG(StatesGroup):
     menu = State()                # Main menu (My Tasks, New Task)
     task_list = State()           # Viewing list of tasks
     task_create = State()         # Inputting title for new task
-    task_category = State()       
-    task_detail = State()
+    task_category = State()       # Inputting title for new category
+    task_detail = State()         # Task details
+    task_edit_title = State()     # Edit title
     settings = State()
     
 class SetupSG(StatesGroup):
@@ -20,5 +21,7 @@ class SetupSG(StatesGroup):
     
 
 class CategorySG(StatesGroup): 
-    list = State()
-    create = State()
+    list = State()                # Viewing list of categories
+    create = State()              # Create a new category
+    detail = State()              # Category details
+    edit = State()                # Edit category

@@ -22,6 +22,15 @@ class APIClient:
         if self.session:
             await self.session.close()
 
+
+    def _get_headers(self) -> Dict[str, str]:
+        """Returns headers with Token, if present."""
+        if not self.token:
+            logger.error("Attempting request without Token!")
+            raise PermissionError("Unauthorized: Token is missing. Login first.")
+        return {"Authorization": f"Token {self.token}"}
+
+
     async def login(self, telegram_id: int, username: str, first_name: str, language_code: str = "en") -> Dict[str, Any]:
         """
         Authenticates user via Telegram ID and updates/creates user in DB.
@@ -48,6 +57,7 @@ class APIClient:
             logger.error(f"Auth failed: {e}")
             raise
 
+
     async def get_profile(self) -> Dict:
         """Fetch user profile (language, timezone)."""
         if not self.token:
@@ -59,37 +69,41 @@ class APIClient:
         async with self.session.get(url, headers=headers) as resp:
             resp.raise_for_status()
             data = await resp.json()
-            if data:
+            if isinstance(data, list) and data:
                 return data[0]
-            return {}
+            if isinstance(data, dict) and 'results' in data:
+                return data['results'][0]
+            return data
+
 
     async def update_profile(self, language: str = None, timezone: str = None) -> Dict:
         """Update user profile settings."""
         profile = await self.get_profile()
         user_id = profile.get('id')
+        
         if not user_id:
             raise ValueError("Could not fetch profile id")
 
         url = f"{self.base_url}/users/profile/{user_id}/"
-        headers = {"Authorization": f"Token {self.token}"}
         
         payload = {}
         if language: payload['language'] = language
         if timezone: payload['timezone'] = timezone
         
-        async with self.session.patch(url, json=payload, headers=headers) as resp:
+        async with self.session.patch(url, json=payload, headers=self._get_headers()) as resp:
             resp.raise_for_status()
             return await resp.json()
 
+
+    # Tasks
     async def get_tasks(self) -> List[Dict]:
         """Fetch tasks for the authenticated user."""
         if not self.token:
             raise PermissionError("Client is not authenticated.")
 
         url = f"{self.base_url}/tasks/"
-        headers = {"Authorization": f"Token {self.token}"}
         
-        async with self.session.get(url, headers=headers) as resp:
+        async with self.session.get(url, headers=self._get_headers()) as resp:
             resp.raise_for_status()
             return await resp.json()
 
@@ -99,7 +113,6 @@ class APIClient:
             raise PermissionError("Client is not authenticated.")
 
         url = f"{self.base_url}/tasks/"
-        headers = {"Authorization": f"Token {self.token}"}
         
         payload = {"title": title}
         if deadline:
@@ -107,20 +120,48 @@ class APIClient:
         if category_id:
             payload["category_id"] = category_id
 
-        async with self.session.post(url, headers=headers, json=payload) as resp:
+        async with self.session.post(url, headers=self._get_headers(), json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
         
         
+    async def delete_task(self, task_id: str):
+        """Delete task"""
+        async with self.session.delete(
+                f"{self.base_url}/tasks/{task_id}/",
+                headers=self._get_headers(),
+            ) as resp:
+                resp.raise_for_status()
+
+
+    async def update_task(self, task_id: str, data: dict):
+        """Update task"""
+        async with self.session.patch(
+                f"{self.base_url}/tasks/{task_id}/", 
+                json=data,
+                headers=self._get_headers()
+            ) as resp:
+                resp.raise_for_status()
+                return await resp.json()
+
+
+    async def get_task(self, task_id: str):
+        """Get one task (for details window)"""
+        async with self.session.get(f"{self.base_url}/tasks/{task_id}/", headers=self._get_headers()) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+        
+        
+    # Categories
     async def get_categories(self) -> List[Dict]:
         """Fetch categories."""
         if not self.token:
             raise PermissionError("Client is not authenticated.")
             
         url = f"{self.base_url}/categories/"
-        headers = {"Authorization": f"Token {self.token}"}
+        
         try:
-            async with self.session.get(url, headers=headers) as resp:
+            async with self.session.get(url, headers=self._get_headers()) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 return []
@@ -135,11 +176,59 @@ class APIClient:
             raise PermissionError("No token")
             
         url = f"{self.base_url}/categories/"
-        headers = {"Authorization": f"Token {self.token}"}
         payload = {"name": name} 
         
-        async with self.session.post(url, headers=headers, json=payload) as resp:
+        async with self.session.post(url, headers=self._get_headers(), json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
     
     
+    async def delete_category(self, cat_id: str):
+        """Delete category"""
+        async with self.session.delete(
+                f"{self.base_url}/categories/{cat_id}/", 
+                headers=self._get_headers()
+            ) as resp:
+                resp.raise_for_status()
+            
+            
+    async def update_category(self, cat_id: str, name: str):
+        """Update category"""
+        url = f"{self.base_url}/categories/{cat_id}/"
+        payload = {"name": name}
+        try:
+            async with self.session.patch(
+                url, 
+                json=payload, 
+                headers=self._get_headers()
+            ) as resp:
+                if resp.status == 400:
+                    error_text = await resp.text()
+                    logger.error(f"❌ 400 BAD REQUEST на {url}: {error_text}")
+                
+                resp.raise_for_status()
+                return await resp.json()
+                
+        except Exception as e:
+            logger.error(f"Request failed: {e}")
+            raise
+                
+                
+    async def get_category(self, cat_id: str):
+        """Get one category details"""
+        url = f"{self.base_url}/categories/{cat_id}/"
+        try:
+            async with self.session.get(
+                url, 
+                headers=self._get_headers()
+            ) as resp:
+                if resp.status == 400:
+                    error_text = await resp.text()
+                    logger.error(f"❌ 400 BAD REQUEST на {url}: {error_text}")
+                
+                resp.raise_for_status()
+                return await resp.json()
+                
+        except Exception as e:
+            logger.error(f"Request failed: {e}")
+            raise
