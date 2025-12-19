@@ -13,7 +13,11 @@ jobs:
     env:
       SECRET_KEY: "django-insecure-test-key-dummy-value"
       DEBUG: "True"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DATABASE_URL: "sqlite:///db.sqlite3"
+      REDIS_URL: "redis://localhost:6379/0"
       BOT_TOKEN: "12345:fake-token-for-ci-tests"
+      GEMINI_API_KEY: "fake-gemini-api-key"
       
     steps:
     - name: Check out code
