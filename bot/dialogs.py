@@ -5,10 +5,10 @@ from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Star
 from aiogram_dialog.widgets.input import TextInput, MessageInput
 from aiogram.types import CallbackQuery, Message
 from aiogram.enums import ContentType
-from utils.transcriber import transcribe_voice
-from utils.parser import parse_task_text
-from states.state import CategorySG, MainSG, SetupSG
-from getters import get_categories, get_my_tasks, get_task_data, get_category_data
+from bot.utils.transcriber import transcribe_voice
+from bot.utils.parser import parse_task_text
+from bot.states.state import CategorySG, MainSG, SetupSG
+from bot.getters import get_categories, get_my_tasks, get_task_data, get_category_data
 from timezonefinder import TimezoneFinder
 
 

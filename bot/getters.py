@@ -1,7 +1,7 @@
 import logging
 from typing import Dict
 from aiogram_dialog import DialogManager
-from client import APIClient
+from bot.client import APIClient
 import pytz
 from dateutil import parser
 

@@ -2,8 +2,8 @@ from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
-from client import APIClient
-from states.state import MainSG, SetupSG 
+from bot.client import APIClient
+from bot.states.state import MainSG, SetupSG 
 import html
 
 router = Router()

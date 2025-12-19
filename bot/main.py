@@ -6,10 +6,10 @@ from aiogram_dialog import setup_dialogs
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-from config import BOT_TOKEN, API_BASE_URL
-from client import APIClient
-from handlers.start import router as start_router
-from dialogs import main_dialog, setup_dialog, category_dialog
+from bot.config import BOT_TOKEN, API_BASE_URL
+from bot.client import APIClient
+from bot.handlers.start import router as start_router
+from bot.dialogs import main_dialog, setup_dialog, category_dialog
 
 
 logger = logging.getLogger(__name__)
