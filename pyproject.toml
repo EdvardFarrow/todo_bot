@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev-dependencies = [
+dev = [
     "ruff",
     "mypy",
     "django-stubs",

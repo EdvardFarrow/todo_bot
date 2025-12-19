@@ -1918,7 +1918,7 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-dev-dependencies = [
+dev = [
     { name = "aioresponses" },
     { name = "coverage" },
     { name = "django-stubs" },
@@ -1956,7 +1956,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev-dependencies = [
+dev = [
     { name = "aioresponses" },
     { name = "coverage" },
     { name = "django-stubs" },
