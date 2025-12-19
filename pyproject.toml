@@ -22,6 +22,7 @@ dependencies = [
     "dateparser>=1.2.2",
     "pytz>=2025.2",
     "python-dateutil>=2.9.0.post0",
+    "google-generativeai>=0.8.6",
 ]
 
 [tool.uv]

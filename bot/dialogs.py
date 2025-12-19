@@ -4,6 +4,7 @@ from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Star
 from aiogram_dialog.widgets.input import TextInput, MessageInput
 from aiogram.types import CallbackQuery, Message
 from aiogram.enums import ContentType
+from utils.transcriber import transcribe_voice
 from utils.parser import parse_task_text
 from states.state import CategorySG, MainSG, SetupSG
 from getters import get_categories, get_my_tasks
@@ -102,10 +103,45 @@ async def on_geo_sent(message: Message, widget, manager):
         
     except Exception as e:
         await message.answer(f"❌ <b>API Error:</b>\n<code>{e}</code>")
+        
+        
+async def on_voice_task(message: Message, widget, manager):
+    """
+    Processing a voice message from the main menu.
+    """
+    await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+
+    text = await transcribe_voice(message.bot, message.voice.file_id)
+
+    if not text:
+        await message.answer("❌ The voice message could not be recognized.")
+        return
+
+    await message.answer(f"🗣 <b>Recognized:</b>\n<i>«{text}»</i>")
+
+    client = manager.middleware_data.get("api_client")
+
+    user_tz = "UTC"
+    try:
+        profile = await client.get_profile()
+        user_tz = profile.get("timezone", "UTC")
+    except Exception:
+        pass
+
+    title, deadline_dt = parse_task_text(text, user_timezone=user_tz)
+
+    manager.dialog_data["temp_title"] = title
+    manager.dialog_data["temp_deadline"] = deadline_dt.isoformat() if deadline_dt else None
+
+    await manager.switch_to(MainSG.task_category)
 
 
 main_menu_window = Window(
     Format("👋 Hello, <b>{username}</b>!\n\nYour personal Task Tracker is ready."),
+    MessageInput(
+        func=on_voice_task,
+        content_types=[ContentType.VOICE]
+    ),
     Row(
         Button(Const("📋 My Tasks"), id="btn_my_tasks", on_click=lambda c, b, m: m.switch_to(MainSG.task_list)),
         Button(Const("➕ New Task"), id="btn_new_task", on_click=to_create_task),
@@ -148,6 +184,10 @@ task_create_window = Window(
     TextInput(
         id="input_task_title",
         on_success=on_task_created
+    ),
+    MessageInput(
+        func=on_voice_task,
+        content_types=[ContentType.VOICE]
     ),
     Button(Const("🔙 Cancel"), id="btn_cancel", on_click=lambda c, b, m: m.switch_to(MainSG.menu)),
     state=MainSG.task_create,

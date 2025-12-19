@@ -50,6 +50,7 @@ services:
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - API_BASE_URL=http://backend:8000/api/v1 
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
 
   celery:
     build: .
