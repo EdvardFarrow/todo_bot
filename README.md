@@ -1,6 +1,6 @@
 # ToDo Bot & Backend Service
 
-![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/EdvardFarrow/todo_bot/tests.yml?branch=main)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Django](https://img.shields.io/badge/django-5.0-green)
@@ -78,7 +78,7 @@ A full-stack task management service. Includes a Django REST API backend and an 
 
 4.  **Инфраструктура и качество:**
     * Настроен CI через **GitHub Actions**.
-    * Написаны тесты (pytest) с покрытием кода **95%**.
+    * Написаны тесты (pytest) с покрытием кода **97%**.
     * Используется `uv` для очень быстрой сборки Docker-образов.
 
 ### Запуск

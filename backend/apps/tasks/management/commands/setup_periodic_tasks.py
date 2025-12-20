@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django_celery_beat.models import IntervalSchedule, CrontabSchedule, PeriodicTask
+from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
 
 
 class Command(BaseCommand):
@@ -42,9 +42,7 @@ class Command(BaseCommand):
                 month_of_year="*",
             )
         except CrontabSchedule.MultipleObjectsReturned:
-            schedules = CrontabSchedule.objects.filter(
-                minute="0", hour="7"
-            ).order_by("id")
+            schedules = CrontabSchedule.objects.filter(minute="0", hour="7").order_by("id")
             schedule = schedules.first()
             for dup in schedules[1:]:
                 dup.delete()
@@ -63,10 +61,10 @@ class Command(BaseCommand):
         }
         if interval:
             defaults["interval"] = interval
-            defaults["crontab"] = None 
+            defaults["crontab"] = None
         if crontab:
             defaults["crontab"] = crontab
-            defaults["interval"] = None 
+            defaults["interval"] = None
 
         task, created = PeriodicTask.objects.get_or_create(
             name=name,
