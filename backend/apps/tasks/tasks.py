@@ -1,3 +1,4 @@
+from collections import defaultdict
 import logging
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -98,3 +99,50 @@ def send_telegram_message(chat_id, text):
         requests.post(url, json=payload, timeout=5)
     except Exception as e:
         logger.error(f"❌ Failed to send notification: {e}")
+        
+
+@shared_task
+def send_daily_morning_briefing():
+    """
+    Sends a daily summary of tasks due today to users.
+    Runs every morning at 7:00 AM.
+    """
+    now = timezone.now()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    tasks_today = Task.objects.filter(
+        deadline__range=(start_of_day, end_of_day),
+        is_completed=False
+    ).select_related('user')
+
+    if not tasks_today.exists():
+        logger.info("No tasks for today. Skipping briefing.")
+        return "No tasks today."
+
+    user_tasks_map = defaultdict(list)
+    for task in tasks_today:
+        user_tasks_map[task.user].append(task)
+
+    sent_count = 0
+
+    for user, tasks in user_tasks_map.items():
+        try:
+            if not user.telegram_id:
+                continue
+            
+            task_list_str = "\n".join([f"• {t.title}" for t in tasks])
+            
+            message_text = (
+                f"☀️ <b>Good Morning!</b>\n\n"
+                f"You have {len(tasks)} tasks scheduled for today:\n\n"
+                f"{task_list_str}"
+            )
+
+            send_telegram_message(user.telegram_id, message_text)
+            sent_count += 1
+            
+        except Exception as e:
+            logger.error(f"Failed to send briefing to user {user.id}: {e}")
+
+    return f"Sent morning briefing to {sent_count} users."
